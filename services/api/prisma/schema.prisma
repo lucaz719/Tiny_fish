@@ -1,0 +1,332 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantType {
+  MARKETPLACE_OPERATOR
+  DISTRIBUTOR
+  WHOLESALER
+  RETAILER
+  PRODUCER
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  OPERATOR_OWNER
+  OPERATOR_STAFF
+  DISTRIBUTOR_OWNER
+  DISTRIBUTOR_STAFF
+  WHOLESALER_OWNER
+  WHOLESALER_STAFF
+  RETAILER_OWNER
+  RETAILER_STAFF
+  PRODUCER_OWNER
+  PRODUCER_STAFF
+}
+
+enum Status {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+model Tenant {
+  id        String      @id @default(uuid())
+  name      String
+  type      TenantType
+  status    Status      @default(PENDING)
+  country   String
+  users     User[]
+  products  Product[]
+  warehouses Warehouse[]
+  syncLogs   SyncLog[]
+  ordersPassed   Order[] @relation("BuyerOrders")
+  ordersReceived Order[] @relation("SellerOrders")
+  drivers        Driver[]
+  shipments      Shipment[]
+  pricingRules   PricingRule[]
+  settlements    Settlement[]
+  reviewsGiven    Review[]     @relation("BuyerReviews")
+  reviewsReceived Review[]     @relation("SellerReviews")
+  webhooks        WebhookConfig[]
+  auditLogs       AuditLog[]
+  apiKeys         ApiKey[]
+  bio            String?
+  logoUrl        String?
+  rating         Float?     @default(0.0)
+  fulfillmentRate Float?    @default(0.0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@map("tenants")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  role       UserRole
+  status     Status   @default(PENDING)
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  ordersCreated Order[]
+  auditLogs  AuditLog[]
+  mfaEnabled Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  sku         String
+  name        String
+  description String?
+  category    String?
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  inventory   Inventory[]
+  orderItems  OrderItem[]
+  pricingRules PricingRule[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([tenantId, sku])
+  @@map("products")
+}
+
+model Warehouse {
+  id        String      @id @default(uuid())
+  name      String
+  location  String?
+  tenantId  String
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  inventory Inventory[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@map("warehouses")
+}
+
+model Inventory {
+  id          String    @id @default(uuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity    Int       @default(0)
+  minStock    Int       @default(0)
+  tenantId    String
+  // Relation to tenant is implicit via products/warehouses but needed for RLS
+  // We'll add it explicitly for easier RLS filtering
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productId, warehouseId])
+  @@map("inventory")
+}
+
+model SyncLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  source    String   // e.g., "TINYFISH_VENDOR_A"
+  status    String   // SUCCESS, FAILED, PARTIAL
+  message   String?
+  itemsProcessed Int @default(0)
+  durationMs Int     @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("sync_logs")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  orderNumber     String      @unique
+  buyerTenantId   String
+  buyerTenant     Tenant      @relation("BuyerOrders", fields: [buyerTenantId], references: [id])
+  sellerTenantId  String
+  sellerTenant    Tenant      @relation("SellerOrders", fields: [sellerTenantId], references: [id])
+  status          OrderStatus @default(PENDING)
+  totalAmount     Decimal     @db.Decimal(20, 2)
+  items           OrderItem[]
+  shipment        Shipment?
+  review          Review?
+  createdById     String
+  createdBy       User        @relation(fields: [createdById], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(20, 2)
+  totalPrice  Decimal  @db.Decimal(20, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("order_items")
+}
+
+model Driver {
+  id              String      @id @default(uuid())
+  name            String
+  phone           String      @unique
+  vehicleInfo     String?
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  shipments       Shipment[]
+  status          Status      @default(PENDING)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("drivers")
+}
+
+enum ShipmentStatus {
+  PICKUP_PENDING
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
+model Shipment {
+  id                String         @id @default(uuid())
+  trackingNumber    String         @unique
+  orderId           String         @unique
+  order             Order          @relation(fields: [orderId], references: [id])
+  driverId          String?
+  driver            Driver?        @relation(fields: [driverId], references: [id])
+  tenantId          String
+  tenant            Tenant         @relation(fields: [tenantId], references: [id])
+  status            ShipmentStatus @default(PICKUP_PENDING)
+  estimatedDelivery DateTime?
+  actualDelivery    DateTime?
+  currentLat        Float?
+  currentLong       Float?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@map("shipments")
+}
+
+model PricingRule {
+  id              String      @id @default(uuid())
+  productId       String
+  product         Product     @relation(fields: [productId], references: [id])
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  type            String      // e.g., "DYNAMIC_DEMAND", "STOCK_CLEARANCE"
+  minPrice        Decimal     @db.Decimal(20, 2)
+  maxPrice        Decimal     @db.Decimal(20, 2)
+  targetMargin    Float?
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("pricing_rules")
+}
+
+model Settlement {
+  id              String      @id @default(uuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  amount          Decimal     @db.Decimal(20, 2)
+  currency        String      @default("PKR")
+  status          Status      @default(PENDING)
+  periodStart     DateTime
+  periodEnd       DateTime
+  metadata        Json?       // Details like driver payouts, commissions
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("settlements")
+}
+
+model Review {
+  id              String      @id @default(uuid())
+  orderId         String      @unique
+  order           Order       @relation(fields: [orderId], references: [id])
+  buyerId         String
+  buyer           Tenant      @relation("BuyerReviews", fields: [buyerId], references: [id])
+  sellerId        String
+  seller          Tenant      @relation("SellerReviews", fields: [sellerId], references: [id])
+  rating          Int         // 1-5
+  comment         String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("reviews")
+}
+
+model WebhookConfig {
+  id              String      @id @default(uuid())
+  url             String
+  eventTypes      String[]    // e.g., ["ORDER_CREATED", "SHIPMENT_DELIVERED"]
+  secret          String?
+  isActive        Boolean     @default(true)
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("webhook_configs")
+}
+
+model AuditLog {
+  id              String      @id @default(uuid())
+  entityType      String      // e.g., "ORDER", "PRODUCT"
+  entityId        String
+  action          String      // e.g., "CREATE", "UPDATE", "DELETE"
+  oldValue        Json?
+  newValue        Json?
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id])
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime    @default(now())
+
+  @@map("audit_logs")
+}
+
+model ApiKey {
+  id              String      @id @default(uuid())
+  key             String      @unique
+  name            String
+  scopes          String[]    // e.g., ["read:orders", "write:inventory"]
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime    @default(now())
+
+  @@map("api_keys")
+}

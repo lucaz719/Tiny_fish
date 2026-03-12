@@ -1,0 +1,21 @@
+{
+  "name": "glow-shield",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unified Supply Chain Ecosystem Platform",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "prettier": "^3.0.0",
+    "eslint": "^8.0.0"
+  }
+}
