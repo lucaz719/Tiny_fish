@@ -95,7 +95,7 @@ export class IntelligenceService {
         buyer: { select: { name: true } },
         seller: { select: { name: true } },
         product: { select: { name: true, sku: true } }
-      },
+      } as any,
       orderBy: { createdAt: 'desc' }
     });
   }
