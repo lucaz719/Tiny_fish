@@ -11,6 +11,8 @@ import logisticsRoutes from './modules/logistics/logistics.routes.js';
 import optimizationRoutes from './modules/optimization/optimization.routes.js';
 import marketplaceRoutes from './modules/marketplace/marketplace.routes.js';
 import ecosystemRoutes from './modules/ecosystem/ecosystem.routes.js';
+import posRoutes from './modules/pos/pos.routes.js';
+import intelligenceRoutes from './modules/intelligence/intelligence.routes.js';
 import prismaPlugin from './plugins/prisma.plugin.js';
 
 const buildApp = (): FastifyInstance => {

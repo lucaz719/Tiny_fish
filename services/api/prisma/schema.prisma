@@ -60,6 +60,9 @@ model Tenant {
   webhooks        WebhookConfig[]
   auditLogs       AuditLog[]
   apiKeys         ApiKey[]
+  posSessions     PosSession[]
+  rfqsPassed      Rfq[]       @relation("BuyerRfqs")
+  rfqsReceived    Rfq[]       @relation("SellerRfqs")
   bio            String?
   logoUrl        String?
   rating         Float?     @default(0.0)
@@ -80,6 +83,7 @@ model User {
   tenant     Tenant   @relation(fields: [tenantId], references: [id])
   ordersCreated Order[]
   auditLogs  AuditLog[]
+  posSessions PosSession[]
   mfaEnabled Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -98,6 +102,9 @@ model Product {
   inventory   Inventory[]
   orderItems  OrderItem[]
   pricingRules PricingRule[]
+  posItems     PosTransactionItem[]
+  priceBenchmark PriceBenchmark?
+  rfqs         Rfq[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -329,4 +336,78 @@ model ApiKey {
   createdAt       DateTime    @default(now())
 
   @@map("api_keys")
+}
+
+model PosSession {
+  id              String           @id @default(uuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  openedById      String
+  openedBy        User             @relation(fields: [openedById], references: [id])
+  openedAt        DateTime         @default(now())
+  closedAt        DateTime?
+  openingFloat    Decimal          @db.Decimal(20, 2)
+  closingFloat    Decimal?         @db.Decimal(20, 2)
+  status          Status           @default(ACTIVE)
+  transactions    PosTransaction[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("pos_sessions")
+}
+
+model PosTransaction {
+  id              String                 @id @default(uuid())
+  sessionId       String
+  session         PosSession             @relation(fields: [sessionId], references: [id])
+  totalAmount     Decimal                @db.Decimal(20, 2)
+  paymentMethod   String                 // CASH, CARD, CREDIT
+  receiptRef      String?                @unique
+  items           PosTransactionItem[]
+  createdAt       DateTime               @default(now())
+
+  @@map("pos_transactions")
+}
+
+model PosTransactionItem {
+  id              String         @id @default(uuid())
+  transactionId   String
+  transaction     PosTransaction @relation(fields: [transactionId], references: [id])
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  batchId         String?
+  quantity        Int
+  unitPrice       Decimal        @db.Decimal(20, 2)
+  totalPrice      Decimal        @db.Decimal(20, 2)
+
+  @@map("pos_transaction_items")
+}
+
+model PriceBenchmark {
+  id              String   @id @default(uuid())
+  productId       String   @unique
+  product         Product  @relation(fields: [productId], references: [id])
+  marketLow       Decimal  @db.Decimal(20, 2)
+  marketMedian    Decimal  @db.Decimal(20, 2)
+  marketHigh      Decimal  @db.Decimal(20, 2)
+  sampleSize      Int
+  calculatedAt    DateTime @default(now())
+
+  @@map("price_benchmarks")
+}
+
+model Rfq {
+  id              String      @id @default(uuid())
+  buyerId         String
+  buyer           Tenant      @relation("BuyerRfqs", fields: [buyerId], references: [id])
+  sellerId        String
+  seller          Tenant      @relation("SellerRfqs", fields: [sellerId], references: [id])
+  productId       String
+  product         Product     @relation(fields: [productId], references: [id])
+  quantity        Int
+  status          String      @default("PENDING") // PENDING, QUOTED, ACCEPTED, REJECTED
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("rfqs")
 }

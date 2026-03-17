@@ -11,7 +11,8 @@ import {
   ShieldCheck, 
   Settings, 
   LogOut,
-  Zap
+  Zap,
+  BarChart3
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
@@ -21,6 +22,8 @@ const menuItems = [
   { icon: Package, label: 'Inventory', href: '/inventory' },
   { icon: ShoppingCart, label: 'Orders', href: '/orders' },
   { icon: Globe, label: 'Marketplace', href: '/marketplace' },
+  { icon: Zap, label: 'POS Terminal', href: '/pos' },
+  { icon: BarChart3, label: 'Intelligence', href: '/analytics' },
   { icon: ShieldCheck, label: 'Ecosystem', href: '/ecosystem' },
 ];
 
