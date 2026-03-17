@@ -13,6 +13,7 @@ import marketplaceRoutes from './modules/marketplace/marketplace.routes.js';
 import ecosystemRoutes from './modules/ecosystem/ecosystem.routes.js';
 import posRoutes from './modules/pos/pos.routes.js';
 import intelligenceRoutes from './modules/intelligence/intelligence.routes.js';
+import { complianceRoutes } from './modules/compliance/compliance.routes.js';
 import prismaPlugin from './plugins/prisma.plugin.js';
 
 const buildApp = (): FastifyInstance => {
@@ -43,6 +44,9 @@ const buildApp = (): FastifyInstance => {
     app.register(optimizationRoutes, { prefix: '/api/v1/optimization' });
     app.register(marketplaceRoutes, { prefix: '/api/v1/marketplace' });
     app.register(ecosystemRoutes, { prefix: '/api/v1/ecosystem' });
+    app.register(posRoutes, { prefix: '/api/v1/pos' });
+    app.register(intelligenceRoutes, { prefix: '/api/v1/intelligence' });
+    app.register(complianceRoutes, { prefix: '/api/v1/compliance' });
 
     // Health check
     app.get('/health', async () => {

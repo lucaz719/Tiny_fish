@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
@@ -29,6 +30,7 @@ const menuItems = [
 
 export const Sidebar = () => {
   const pathname = usePathname();
+  const [isCompact, setIsCompact] = React.useState(false);
 
   // Don't show sidebar on login/register pages
   if (pathname === '/login' || pathname === '/register') return null;
@@ -39,21 +41,45 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="sidebar">
-      <div style={{ marginBottom: '2.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+    <aside className={clsx('sidebar', isCompact && 'compact')}>
+      <div style={{ marginBottom: '2.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
         <div style={{ 
           backgroundColor: 'var(--accent-primary)', 
           padding: '0.5rem', 
           borderRadius: 'var(--radius-md)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          flexShrink: 0
         }}>
           <Zap size={24} color="white" />
         </div>
-        <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.03em' }}>
+        <span className="logo-text" style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.03em', whiteSpace: 'nowrap' }}>
           Glow Shield
         </span>
+        
+        <button 
+          onClick={() => setIsCompact(!isCompact)}
+          style={{
+            position: 'absolute',
+            right: isCompact ? '-1.5rem' : '-2.25rem',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-secondary)',
+            zIndex: 10,
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          {isCompact ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
       </div>
 
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -75,8 +101,8 @@ export const Sidebar = () => {
                   transition: 'var(--transition-fast)',
                 }}
               >
-                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-                <span style={{ fontWeight: isActive ? 500 : 400 }}>{item.label}</span>
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
+                <span className="nav-label" style={{ fontWeight: isActive ? 500 : 400, whiteSpace: 'nowrap' }}>{item.label}</span>
                 {isActive && (
                   <motion.div
                     layoutId="active-pill"
@@ -105,8 +131,8 @@ export const Sidebar = () => {
             padding: '0.75rem 1rem', 
             color: 'var(--text-secondary)' 
           }}>
-            <Settings size={20} />
-            <span>Settings</span>
+            <Settings size={20} style={{ flexShrink: 0 }} />
+            <span className="nav-label">Settings</span>
           </div>
         </Link>
         <button 
@@ -121,8 +147,8 @@ export const Sidebar = () => {
             textAlign: 'left'
           }}
         >
-          <LogOut size={20} />
-          <span>Logout</span>
+          <LogOut size={20} style={{ flexShrink: 0 }} />
+          <span className="nav-label">Logout</span>
         </button>
       </div>
     </aside>

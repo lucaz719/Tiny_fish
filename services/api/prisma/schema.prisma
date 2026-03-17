@@ -67,6 +67,11 @@ model Tenant {
   logoUrl        String?
   rating         Float?     @default(0.0)
   fulfillmentRate Float?    @default(0.0)
+  licenses        ComplianceLicense[]
+  custodySent     CustodyRecord[]     @relation("CustodyFrom")
+  custodyReceived CustodyRecord[]     @relation("CustodyTo")
+  recallsInitiated Recall[]           @relation("RecallInitiator")
+  recallNotifications RecallNotification[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -105,10 +110,13 @@ model Product {
   posItems     PosTransactionItem[]
   priceBenchmark PriceBenchmark?
   rfqs         Rfq[]
+  batches      Batch[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   @@unique([tenantId, sku])
+  @@index([category])
+  @@index([tenantId])
   @@map("products")
 }
 
@@ -140,6 +148,8 @@ model Inventory {
   updatedAt   DateTime  @updatedAt
 
   @@unique([productId, warehouseId])
+  @@index([tenantId])
+  @@index([productId])
   @@map("inventory")
 }
 
@@ -183,6 +193,9 @@ model Order {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
+  @@index([buyerTenantId])
+  @@index([sellerTenantId])
+  @@index([status])
   @@map("orders")
 }
 
@@ -195,6 +208,8 @@ model OrderItem {
   quantity    Int
   unitPrice   Decimal  @db.Decimal(20, 2)
   totalPrice  Decimal  @db.Decimal(20, 2)
+  batchId     String?
+  batch       Batch?   @relation(fields: [batchId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -375,10 +390,11 @@ model PosTransactionItem {
   transaction     PosTransaction @relation(fields: [transactionId], references: [id])
   productId       String
   product         Product        @relation(fields: [productId], references: [id])
-  batchId         String?
   quantity        Int
   unitPrice       Decimal        @db.Decimal(20, 2)
   totalPrice      Decimal        @db.Decimal(20, 2)
+  batchId         String?
+  batch           Batch?         @relation(fields: [batchId], references: [id])
 
   @@map("pos_transaction_items")
 }
@@ -410,4 +426,89 @@ model Rfq {
   updatedAt       DateTime    @updatedAt
 
   @@map("rfqs")
+}
+
+model Batch {
+  id              String         @id @default(uuid())
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  batchNumber     String
+  manufactureDate DateTime
+  expiryDate      DateTime
+  initialQuantity Int
+  status          String         @default("ACTIVE") // ACTIVE, QUARANTINED, RECALLED, DEPLETED
+  orderItems      OrderItem[]
+  posItems        PosTransactionItem[]
+  custodyRecords  CustodyRecord[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([productId, batchNumber])
+  @@index([productId])
+  @@index([status])
+  @@index([expiryDate])
+  @@map("batches")
+}
+
+model CustodyRecord {
+  id              String      @id @default(uuid())
+  batchId         String
+  batch           Batch       @relation(fields: [batchId], references: [id])
+  fromTenantId    String?
+  fromTenant      Tenant?     @relation("CustodyFrom", fields: [fromTenantId], references: [id])
+  toTenantId      String
+  toTenant        Tenant      @relation("CustodyTo", fields: [toTenantId], references: [id])
+  quantity        Int
+  transferDate    DateTime    @default(now())
+  documentRef     String?
+  createdAt       DateTime    @default(now())
+
+  @@map("custody_records")
+}
+
+model ComplianceLicense {
+  id              String      @id @default(uuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  type            String      // e.g., "PHARMACY_RETAIL", "DISTRIBUTION_WHOLESALE"
+  number          String
+  issuingAuthority String
+  issueDate       DateTime
+  expiryDate      DateTime
+  status          Status      @default(ACTIVE)
+  documentUrl     String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("compliance_licenses")
+}
+
+model Recall {
+  id              String      @id @default(uuid())
+  initiatedById   String
+  initiatedBy     Tenant      @relation("RecallInitiator", fields: [initiatedById], references: [id])
+  productId       String
+  batchIds        String[]    // List of affected batch IDs
+  severity        String      // CLASS_1, CLASS_2, CLASS_3
+  reason          String
+  status          String      @default("OPEN") // OPEN, CLOSED
+  notifications   RecallNotification[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("recalls")
+}
+
+model RecallNotification {
+  id              String      @id @default(uuid())
+  recallId        String
+  recall          Recall      @relation(fields: [recallId], references: [id])
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  unitsAffected   Int
+  unitsQuarantined Int        @default(0)
+  acknowledgedAt  DateTime?
+  createdAt       DateTime    @default(now())
+
+  @@map("recall_notifications")
 }

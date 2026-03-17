@@ -75,6 +75,7 @@ h1, h2, h3, h4, h5 {
 .text-gradient {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   -webkit-background-clip: text;
+  background-clip: text; /* Added for standard compatibility */
   -webkit-text-fill-color: transparent;
 }
 
@@ -94,6 +95,17 @@ h1, h2, h3, h4, h5 {
   padding: 1.5rem;
   position: sticky;
   top: 0;
+  transition: width var(--transition-smooth), padding var(--transition-smooth);
+}
+
+.sidebar.compact {
+  width: 80px;
+  padding: 1.5rem 0.75rem;
+}
+
+.sidebar.compact .nav-label,
+.sidebar.compact .logo-text {
+  display: none;
 }
 
 .main-content {
@@ -102,6 +114,38 @@ h1, h2, h3, h4, h5 {
   background-image: 
     radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
     radial-gradient(circle at 0% 100%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
+  transition: padding var(--transition-smooth);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 200px;
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .layout-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 1rem 1.5rem;
+  }
+
+  .main-content {
+    padding: 1.5rem;
+  }
+
+  .card {
+    padding: 1.25rem;
+  }
 }
 
 /* Dashboard Cards */

@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { Decimal } from '@prisma/client/runtime/library.js';
 import { ScraperService } from './scraper.service.js';
+import { cacheService } from '../../lib/cache.service.js';
 
 const scraperService = new ScraperService();
 
@@ -19,6 +20,9 @@ export class IntelligenceService {
   }
 
   private async calculateBenchmark(productId: string) {
+    const cacheKey = `external_prices:${productId}`;
+    let externalPrices = await cacheService.get<number[]>(cacheKey);
+
     // Aggregate from both B2B Orders and Retail POS Transactions
     const [orderItems, posItems, product] = await Promise.all([
       prisma.orderItem.findMany({ where: { productId }, select: { unitPrice: true } }),
@@ -28,8 +32,10 @@ export class IntelligenceService {
 
     if (!product) return null;
 
-    // Fetch external market prices via Agentic Web AI
-    const externalPrices = await scraperService.fetchExternalMarketPrices(product.name, product.sku);
+    if (!externalPrices) {
+      externalPrices = await scraperService.fetchExternalMarketPrices(product.name, product.sku);
+      await cacheService.set(cacheKey, externalPrices, 24 * 60 * 60 * 1000);
+    }
 
     const allPrices = [
       ...orderItems.map(i => Number(i.unitPrice)),
